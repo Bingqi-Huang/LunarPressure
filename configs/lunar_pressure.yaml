@@ -1,0 +1,73 @@
+line_id: "Line-A"
+gauge_id: "G1"
+valve_id: "V1"
+target_pressure_mpa: 0.1
+tolerance_mpa: 0.05
+visual_hard_min_mpa: 0.0
+visual_hard_max_mpa: 0.2
+pressure_unit: "MPa"
+
+increase_pressure_direction: "clockwise"
+decrease_pressure_direction: "counterclockwise"
+operator_camera_view_definition: "压力表和阀门的斜前方"
+initial_contact_state: "from_observation_pose"
+
+use_tiny_action: false
+canonical_prompts:
+  from_observation_pose:
+    increase_pressure: "Move from the observation pose, grasp valve V1, and turn it clockwise slightly."
+    decrease_pressure: "Move from the observation pose, grasp valve V1, and turn it counterclockwise slightly."
+  already_grasping_valve:
+    increase_pressure: "While holding valve V1, turn it clockwise slightly."
+    decrease_pressure: "While holding valve V1, turn it counterclockwise slightly."
+  stop_data_label: "Stop and hold the arm at the current pose."
+
+act_completion:
+  max_policy_calls_per_act: 3
+  max_act_seconds: 10
+  use_joint_residual_check: true
+  use_action_delta_check: true
+  joint_residual_threshold: null
+  action_delta_threshold: null
+
+stop_protocol:
+  patch_robot_client_for_lunar_control_stop: false
+  stop_response_mode: "hold_send_action"
+  stop_behavior: "hold"
+
+# Real-hardware safety latch. Keep false until the operator has validated:
+#   - action key order and units
+#   - gripper channel semantics
+#   - RoboCOIN `delta_with` configuration
+#   - that observation.state maps cleanly to the canonical 8-dim hold action
+# When false, the orchestrator refuses to emit hold actions and routes STOP to ERROR.
+hold_action_safety_confirmed: false
+
+# When true, the orchestrator flips `contact_state` to `already_grasping_valve`
+# after each successful ACT completion. This is unsafe in general because
+# "completion" today only means policy-call/time budget exhausted or
+# action-delta below threshold — not a confirmed physical grasp.
+# Keep false until a real grip-confirmation signal is wired in OR you have
+# deliberately chosen to assume the first ACT phase always achieves grasp.
+auto_mark_grasping_after_act: false
+
+gemini_model: "gemini-robotics-er-1.6-preview"
+gemini_confidence_threshold: 0.8
+gemini_max_retries_per_observe: 5
+gemini_temperature: 0.0
+gemini_primary_image: "observation.scene_image"
+gemini_fallback_image: "observation.wrist_image"
+gemini_prompt_file: "configs/prompts/gemini_gauge_reading.md"
+image_preprocess_owner: "LunarPressure"
+resize_policy: "不 resize；Gemini 读表路径可由 Gemini API 做 zoom/crop/preprocess，OpenPI 路径保持原图"
+forward_to_openpi: "保持原始 observation，仅替换 prompt"
+
+lunarpressure_server_host: "192.168.1.166"
+lunarpressure_server_port: 8001
+openpi_backend_host: "127.0.0.1"
+openpi_backend_port: 8000
+robot_pc_ip: "192.168.1.124"
+gpu_workstation_ip: "192.168.1.166"
+
+run_dir: "runs"
+
